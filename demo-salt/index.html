@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Станция перехвата</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #0d1117;
+      }
+      #game-root {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      canvas {
+        display: block;
+        max-width: 100%;
+        max-height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-root"></div>
+    <script type="module">
+      /* Один файл-бандл: esm.sh мог подгружать pixi дважды → "batcher already has a handler" */
+      import {
+        Application,
+        Container,
+        Graphics,
+        Text,
+      } from 'https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.min.mjs';
+
+      const SYMBOLS = ['△', '◯', '⬡', '⬢', '⬤', '⬟'];
+      const FREQS = ['low', 'mid', 'high', 'distorted'];
+      const GAME_MS = 5 * 60 * 1000;
+      const SIGNAL_WINDOW_MS = 15000;
+      const BETWEEN_MIN_MS = 10000;
+      const BETWEEN_MAX_MS = 15000;
+      const FAKE_CHANCE = 0.3;
+
+      function randInt(min, max) {
+        return min + Math.floor(Math.random() * (max - min + 1));
+      }
+
+      function randomBinary(len) {
+        let s = '';
+        for (let i = 0; i < len; i++) s += Math.random() < 0.5 ? '0' : '1';
+        return s;
+      }
+
+      function betweenGapMs() {
+        return randInt(BETWEEN_MIN_MS, BETWEEN_MAX_MS);
+      }
+
+      /** @returns {{ isFake: boolean, truthType: 'normal'|'warning', symbol: string, binary: string, freq: string, displayType: 'normal'|'warning', glitchNote: string }} */
+      function generateSignal() {
+        const isFake = Math.random() < FAKE_CHANCE;
+        const truthType = Math.random() < 0.5 ? 'normal' : 'warning';
+        const symbol = SYMBOLS[randInt(0, SYMBOLS.length - 1)];
+        let binary = randomBinary(randInt(5, 7));
+        let freq = FREQS[randInt(0, FREQS.length - 1)];
+        let displayType = truthType;
+        let glitchNote = '';
+
+        if (isFake) {
+          const flaw = randInt(0, 3);
+          if (flaw === 0) {
+            binary += Math.random() < 0.5 ? 'x' : '?';
+            glitchNote = 'битовая ошибка';
+          } else if (flaw === 1) {
+            freq = freq + '/' + FREQS[randInt(0, FREQS.length - 1)];
+            glitchNote = 'конфликт частоты';
+          } else if (flaw === 2) {
+            displayType = truthType === 'normal' ? 'warning' : 'normal';
+            glitchNote = 'несовпадение типа';
+          } else {
+            glitchNote = 'CRC fail';
+          }
+        }
+
+        return {
+          isFake,
+          truthType,
+          symbol,
+          binary,
+          freq,
+          displayType,
+          glitchNote,
+        };
+      }
+
+      function resolveAction(signal, choice) {
+        // choice: 'report' | 'calm'
+        if (signal.isFake) return { ok: true };
+
+        if (signal.truthType === 'warning' && choice === 'calm')
+          return { ok: false };
+        if (signal.truthType === 'normal' && choice === 'report')
+          return { ok: false };
+        return { ok: true };
+      }
+
+      async function main() {
+        const root = document.getElementById('game-root');
+        const W = Math.min(920, window.innerWidth);
+        const H = Math.min(640, window.innerHeight);
+
+        const app = new Application();
+        await app.init({
+          width: W,
+          height: H,
+          background: 0x0d1117,
+          antialias: true,
+          resolution: window.devicePixelRatio || 1,
+          autoDensity: true,
+        });
+        root.appendChild(app.canvas);
+
+        const ui = new Container();
+        app.stage.addChild(ui);
+
+        const pad = 24;
+        const title = new Text({
+          text: 'Станция перехвата — оператор',
+          style: {
+            fill: 0xe6edf3,
+            fontFamily: 'Segoe UI, system-ui, sans-serif',
+            fontSize: 22,
+            fontWeight: '600',
+          },
+        });
+        title.x = pad;
+        title.y = pad;
+
+        const gameClock = new Text({
+          text: '',
+          style: {
+            fill: 0x8b949e,
+            fontFamily: 'Segoe UI, system-ui, sans-serif',
+            fontSize: 16,
+          },
+        });
+        gameClock.anchor.set(1, 0);
+        gameClock.x = W - pad;
+        gameClock.y = pad;
+
+        const waitingText = new Text({
+          text: 'Ожидание сигнала…',
+          style: {
+            fill: 0x58a6ff,
+            fontFamily: 'Segoe UI, system-ui, sans-serif',
+            fontSize: 28,
+            align: 'center',
+          },
+        });
+        waitingText.anchor.set(0.5, 0.5);
+        waitingText.x = W / 2;
+        waitingText.y = H * 0.38;
+
+        const signalPanel = new Container();
+        signalPanel.x = pad;
+        signalPanel.y = 110;
+
+        const panelBg = new Graphics();
+        panelBg.roundRect(0, 0, W - pad * 2, 220, 12);
+        panelBg.fill({ color: 0x161b22, alpha: 1 });
+        panelBg.stroke({ width: 1, color: 0x30363d });
+
+        const signalLines = [];
+        const lineStyle = {
+          fill: 0xe6edf3,
+          fontFamily: 'Consolas, "Courier New", monospace',
+          fontSize: 18,
+          lineHeight: 26,
+        };
+        for (let i = 0; i < 6; i++) {
+          const t = new Text({ text: '', style: lineStyle });
+          t.x = 20;
+          t.y = 16 + i * 28;
+          signalLines.push(t);
+          signalPanel.addChild(t);
+        }
+
+        signalPanel.addChildAt(panelBg, 0);
+        signalPanel.visible = false;
+
+        const decisionLabel = new Text({
+          text: 'Решение (15 с):',
+          style: {
+            fill: 0x8b949e,
+            fontFamily: 'Segoe UI, system-ui, sans-serif',
+            fontSize: 14,
+          },
+        });
+        decisionLabel.x = pad;
+        decisionLabel.y = H - 130;
+
+        const countdown = new Text({
+          text: '',
+          style: {
+            fill: 0xf85149,
+            fontFamily: 'Segoe UI, system-ui, sans-serif',
+            fontSize: 20,
+            fontWeight: '600',
+          },
+        });
+        countdown.x = pad + 160;
+        countdown.y = H - 135;
+
+        const errorsText = new Text({
+          text: 'Ошибок: 0',
+          style: {
+            fill: 0xf0883e,
+            fontFamily: 'Segoe UI, system-ui, sans-serif',
+            fontSize: 16,
+          },
+        });
+        errorsText.x = W - pad;
+        errorsText.anchor.set(1, 0);
+        errorsText.y = H - 132;
+
+        function makeButton(label, x, y, width, height, fill) {
+          const c = new Container();
+          c.x = x;
+          c.y = y;
+
+          const g = new Graphics();
+          g.roundRect(0, 0, width, height, 8);
+          g.fill({ color: fill, alpha: 1 });
+          g.stroke({ width: 1, color: 0x30363d });
+
+          const txt = new Text({
+            text: label,
+            style: {
+              fill: 0xf0f6fc,
+              fontFamily: 'Segoe UI, system-ui, sans-serif',
+              fontSize: 16,
+              fontWeight: '600',
+              align: 'center',
+            },
+          });
+          txt.anchor.set(0.5, 0.5);
+          txt.x = width / 2;
+          txt.y = height / 2;
+
+          c.addChild(g, txt);
+          c.eventMode = 'static';
+          c.cursor = 'pointer';
+          const hit = new Graphics();
+          hit.rect(0, 0, width, height);
+          hit.fill({ color: 0xffffff, alpha: 0.001 });
+          c.addChild(hit);
+
+          let hover = false;
+          c.on('pointerover', () => {
+            hover = true;
+            g.clear();
+            g.roundRect(0, 0, width, height, 8);
+            g.fill({ color: fill + 0x101010, alpha: 1 });
+            g.stroke({ width: 1, color: 0x58a6ff });
+          });
+          c.on('pointerout', () => {
+            hover = false;
+            g.clear();
+            g.roundRect(0, 0, width, height, 8);
+            g.fill({ color: fill, alpha: 1 });
+            g.stroke({ width: 1, color: 0x30363d });
+          });
+
+          return c;
+        }
+
+        const btnW = (W - pad * 3) / 2;
+        const btnH = 48;
+        const btnY = H - 88;
+        const btnReport = makeButton('Доложить наверх', pad, btnY, btnW, btnH, 0x238636);
+        const btnCalm = makeButton(
+          'Всё спокойно',
+          pad * 2 + btnW,
+          btnY,
+          btnW,
+          btnH,
+          0x1f6feb,
+        );
+
+        ui.addChild(
+          title,
+          gameClock,
+          waitingText,
+          signalPanel,
+          decisionLabel,
+          countdown,
+          errorsText,
+          btnReport,
+          btnCalm,
+        );
+
+        let gameStart = performance.now();
+        let gameEnd = gameStart + GAME_MS;
+        let errors = 0;
+
+        /** @type {ReturnType<typeof generateSignal>|null} */
+        let currentSignal = null;
+        /** @type {number|null} */
+        let signalExpiresAt = null;
+        /** @type {number|null} */
+        let nextSignalAt = gameStart + betweenGapMs();
+
+        let ended = false;
+
+        const overlay = new Container();
+        overlay.visible = false;
+        const overlayBg = new Graphics();
+        overlayBg.rect(0, 0, W, H);
+        overlayBg.fill({ color: 0x000000, alpha: 0.75 });
+
+        const overText = new Text({
+          text: '',
+          style: {
+            fill: 0xe6edf3,
+            fontFamily: 'Segoe UI, system-ui, sans-serif',
+            fontSize: 32,
+            fontWeight: '600',
+            align: 'center',
+          },
+        });
+        overText.anchor.set(0.5, 0.5);
+        overText.x = W / 2;
+        overText.y = H / 2;
+
+        overlay.addChild(overlayBg, overText);
+        app.stage.addChild(overlay);
+
+        function finishGame() {
+          ended = true;
+          currentSignal = null;
+          signalExpiresAt = null;
+          nextSignalAt = null;
+          waitingText.visible = false;
+          signalPanel.visible = false;
+          btnReport.eventMode = 'none';
+          btnCalm.eventMode = 'none';
+          btnReport.alpha = 0.4;
+          btnCalm.alpha = 0.4;
+          overlay.visible = true;
+          overText.text = `Игра окончена.\nОшибок: ${errors}`;
+        }
+
+        function applyErrorsText() {
+          errorsText.text = `Ошибок: ${errors}`;
+        }
+
+        function refreshSignalDisplay(sig) {
+          const lines = [
+            `Символ: ${sig.symbol}`,
+            `Бинарный код: ${sig.binary}`,
+            `Частота: ${sig.freq}`,
+            `Тип (на экране): ${sig.displayType}`,
+          ];
+          if (sig.isFake && sig.glitchNote) {
+            lines.push(`Диагностика: ${sig.glitchNote}`);
+          }
+          lines.push('');
+          for (let i = 0; i < signalLines.length; i++) {
+            signalLines[i].text = lines[i] ?? '';
+          }
+        }
+
+        function beginSignal() {
+          currentSignal = generateSignal();
+          signalExpiresAt = performance.now() + SIGNAL_WINDOW_MS;
+          signalPanel.visible = true;
+          waitingText.visible = false;
+          refreshSignalDisplay(currentSignal);
+        }
+
+        function clearSignalPhase() {
+          currentSignal = null;
+          signalExpiresAt = null;
+          signalPanel.visible = false;
+          waitingText.visible = true;
+          nextSignalAt = performance.now() + betweenGapMs();
+        }
+
+        function handleChoice(choice) {
+          if (ended || !currentSignal) return;
+
+          const r = resolveAction(currentSignal, choice);
+          if (!r.ok) {
+            errors += 1;
+            applyErrorsText();
+          }
+          clearSignalPhase();
+        }
+
+        btnReport.on('pointerdown', () => handleChoice('report'));
+        btnCalm.on('pointerdown', () => handleChoice('calm'));
+
+        app.ticker.add(() => {
+          if (ended) return;
+
+          const now = performance.now();
+
+          const leftMs = Math.max(0, Math.ceil(gameEnd - now));
+          const mm = Math.floor(leftMs / 60000);
+          const ss = Math.floor((leftMs % 60000) / 1000);
+          gameClock.text = `Игра: ${mm}:${String(ss).padStart(2, '0')}`;
+
+          if (now >= gameEnd) {
+            finishGame();
+            return;
+          }
+
+          if (!currentSignal) {
+            countdown.text = '';
+            if (now >= nextSignalAt) beginSignal();
+          } else {
+            const left = Math.max(0, Math.ceil((signalExpiresAt - now) / 1000));
+            countdown.text = `${left} с`;
+
+            if (now >= signalExpiresAt) {
+              if (!currentSignal.isFake) {
+                errors += 1;
+                applyErrorsText();
+              }
+              clearSignalPhase();
+            }
+          }
+        });
+
+        window.addEventListener('resize', () => {
+          /* одноразовый размер canvas; полный resize можно добавить при необходимости */
+        });
+      }
+
+      main().catch(console.error);
+    </script>
+  </body>
+</html>
