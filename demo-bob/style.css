@@ -1,0 +1,312 @@
+/* ===== Layout: field + dictionary ===== */
+.main-flex {
+  display: flex;
+  align-items: flex-start;
+  gap: 2.5rem;
+}
+.main-left {
+  flex: 0 0 auto;
+}
+.main-right {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.alien-dictionary-panel {
+  padding: 1.2rem;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+
+  h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0.7rem;
+  }
+}
+
+.alien-dictionary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.alien-dictionary-table th,
+.alien-dictionary-table td {
+  border: 1px solid var(--color-border);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.alien-dictionary-table th {
+  background: var(--color-surface-hover);
+  color: var(--color-text-muted);
+}
+.alien-dictionary-table td select {
+  width: 100%;
+  font-size: 1.6rem;
+  padding: 0.1rem 0.2rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* ===== Design Tokens ===== */
+
+:root {
+  --color-bg: #1a1a2e;
+  --color-surface: #16213e;
+  --color-surface-hover: #1a2744;
+  --color-border: #0f3460;
+  --color-accent: #e94560;
+  --color-text: #eee;
+  --color-text-muted: #8899aa;
+  --color-selected: #e94560;
+
+  --size-card: clamp(56px, 12vw, 80px);
+  --size-emoji: clamp(1.8rem, 4vw, 2.8rem);
+  --size-gap: 12px;
+
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+}
+
+/* ===== Reset & Base ===== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100dvh;
+  padding: 1.5rem;
+}
+
+/* ===== Layout ===== */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--size-gap);
+  margin-bottom: 1.5rem;
+}
+
+.lang-debug-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.debug-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.98rem;
+  color: var(--color-text-muted);
+}
+
+.debug-hidden .alien-word::after,
+.debug-hidden .per-card-emoji,
+.debug-hidden .alien-word[data-label]::after {
+  display: none !important;
+}
+
+.header h1 {
+  font-size: 1.4rem;
+}
+
+.counter {
+  font-size: 1.1rem;
+  color: var(--color-text-muted);
+}
+
+/* ===== Button ===== */
+
+.btn {
+  background: var(--color-accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1.2rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: opacity var(--duration-fast);
+
+  &:hover {
+    opacity: 0.85;
+  }
+
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+/* ===== Card Grid ===== */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(5, var(--size-card));
+  gap: var(--size-gap);
+}
+
+/* ===== Card ===== */
+
+.card {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition:
+    border-color var(--duration-normal),
+    box-shadow var(--duration-normal);
+
+  &:hover {
+    background: var(--color-surface-hover);
+  }
+
+  /* скрываем нативный чекбокс */
+  .card-checkbox {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* галочка */
+  .card-checkmark {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-size: 1.4rem;
+    color: var(--color-selected);
+    opacity: 0;
+    transition: opacity var(--duration-fast);
+  }
+
+  /* выбранная карта */
+  &:has(.card-checkbox:checked) {
+    border-color: var(--color-selected);
+    box-shadow: 0 0 12px
+      color-mix(in srgb, var(--color-selected) 40%, transparent);
+
+    .card-checkmark {
+      opacity: 1;
+    }
+  }
+}
+
+/* ===== Emoji Item ===== */
+
+.emoji-item {
+  font-size: var(--size-emoji);
+  line-height: 1;
+  user-select: none;
+}
+
+/* ===== Alien Panel ===== */
+
+.alien-panel {
+  margin-top: 2rem;
+  padding: 1.2rem;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+
+  h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0.6rem;
+    color: var(--color-text-muted);
+  }
+}
+
+.alien-panel-subheader {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+}
+
+/* ===== Per-card Responses ===== */
+
+.per-card-responses {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.per-card-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.per-card-emoji {
+  font-size: 1.8rem;
+  line-height: 1;
+  flex-shrink: 0;
+
+  align-self: center;
+
+  padding: 5px;
+  border: 1px solid;
+  border-radius: 10px;
+  border-color: var(--color-selected);
+
+  text-align: center;
+}
+
+.alien-response {
+  font-size: 2.4rem;
+  min-height: 3rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.6rem;
+  color: var(--color-text-muted);
+  transition: color var(--duration-normal);
+
+  &.active {
+    color: var(--color-text);
+  }
+}
+
+.alien-word {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+
+  &::after {
+    content: attr(data-label);
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &.negated {
+    opacity: 0.8;
+
+    &::before {
+      content: '╳';
+      position: absolute;
+      color: red;
+    }
+  }
+}

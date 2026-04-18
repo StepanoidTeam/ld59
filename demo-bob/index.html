@@ -1,11 +1,46 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>demo bob</title>
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    demo bob
+    <div class="header">
+      <h1>🃏 Emoji Cards</h1>
+      <span id="$selectedCount" class="counter">0 / 5</span>
+      <button id="$btnGenerate" class="btn">Новая колода</button>
+      <div class="lang-debug-controls">
+        <button id="$btnLang" class="btn" type="button">EN</button>
+        <label class="debug-toggle">
+          <input type="checkbox" id="$chkDebug" checked />
+          <span>Показывать подписи</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="main-flex">
+      <div class="main-left">
+        <div id="$cardGrid" class="card-grid"></div>
+      </div>
+      <div class="main-right">
+        <div class="alien-dictionary-panel">
+          <h2>🗒️ <span data-i18n="dict-header">Словарь признаков</span></h2>
+          <table id="$dictTable" class="alien-dictionary-table">
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="alien-panel">
+      <h2>👽 Ответ пришельцев</h2>
+      <h3 class="alien-panel-subheader">Общее</h3>
+      <div id="$alienResponse" class="alien-response">…</div>
+      <div id="$perCardResponses" class="per-card-responses"></div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
   </body>
 </html>
