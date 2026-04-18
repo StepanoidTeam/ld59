@@ -1,0 +1,123 @@
+:root {
+  --color-bg: #1a1a2e;
+  --color-cell: #16213e;
+  --color-cell-hover: #1a2744;
+  --color-border: #0f3460;
+  --color-zero: #5b8fb9;
+  --color-one: #80b3e0;
+  --color-sum: #e2b714;
+  --color-sum-bg: #2a1f3d;
+  --color-text: #eee;
+  --size-cell: min(14vw, 72px);
+  --size-sum: min(10vw, 56px);
+  --duration-flip: 150ms;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: system-ui, sans-serif;
+}
+
+h1 {
+  margin-bottom: 8px;
+  font-size: 1.5rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.level-label {
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  opacity: 0.6;
+  letter-spacing: 0.08em;
+}
+
+.win-message {
+  margin-top: 24px;
+  padding: 12px 32px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #52b788;
+  background: #1b4332;
+  border-radius: 8px;
+  letter-spacing: 0.05em;
+}
+
+.grid {
+  display: grid;
+  column-gap: var(--size-sum);
+  row-gap: var(--size-sum);
+  position: relative;
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-cell);
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  font-size: calc(var(--size-cell) * 0.5);
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background var(--duration-flip),
+    transform var(--duration-flip);
+
+  &:hover {
+    background: var(--color-cell-hover);
+  }
+
+  &:active {
+    transform: scale(0.92);
+  }
+
+  &.zero {
+    color: var(--color-zero);
+  }
+
+  &.one {
+    color: var(--color-one);
+  }
+}
+
+.sum-cell {
+  position: absolute;
+  width: var(--size-sum);
+  height: var(--size-sum);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-sum-bg);
+  border-radius: 50%;
+  font-size: calc(var(--size-sum) * 0.5);
+  font-weight: 700;
+  color: var(--color-sum);
+  pointer-events: none;
+  transition:
+    background var(--duration-flip),
+    color var(--duration-flip);
+
+  &.correct {
+    background: #1b4332;
+    color: #52b788;
+  }
+
+  &.wrong {
+    background: #3d1f1f;
+    color: #e94560;
+  }
+}
