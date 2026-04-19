@@ -232,6 +232,38 @@
           data-target="ws"
         /><span class="val">1.00</span></label
       >
+
+      <h3>Background</h3>
+      <label
+        ><span>x</span
+        ><input
+          type="range"
+          min="-500"
+          max="500"
+          value="0"
+          data-target="bgx"
+        /><span class="val">0</span></label
+      >
+      <label
+        ><span>y</span
+        ><input
+          type="range"
+          min="-500"
+          max="500"
+          value="0"
+          data-target="bgy"
+        /><span class="val">0</span></label
+      >
+      <label
+        ><span>scale</span
+        ><input
+          type="range"
+          min="10"
+          max="300"
+          value="100"
+          data-target="bgs"
+        /><span class="val">1.00</span></label
+      >
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.9.2/dist/pixi.min.js"></script>
@@ -254,24 +286,45 @@
       // arm-right.png: 419 x 361 — pivot at bottom-left (shoulder)
 
       // Shoulder offsets from body anchor (body anchor = bottom-center)
-      const LEFT_SHOULDER = { x: -100, y: -500 };
-      const RIGHT_SHOULDER = { x: 100, y: -500 };
+      const SHOULDERS = {
+        left: { x: -100, y: -197 },
+        right: { x: 100, y: -197 },
+      };
 
       // ===== Debug anchor defaults =====
-      const LEFT_ANCHOR = { x: 0.95, y: 0.58 };
-      const RIGHT_ANCHOR = { x: 0.06, y: 0.58 };
+      const ANCHORS = {
+        left: { x: 0.95, y: 0.58 },
+        right: { x: 0.06, y: 0.58 },
+      };
 
       let app;
       let armLeft, armRight;
       let dotLeftShoulder, dotRightShoulder, dotLeftAnchor, dotRightAnchor;
       let warship;
       const WARSHIP = {
-        offsetX: 0,
-        offsetY: 0,
+        offsetX: -23,
+        offsetY: 260,
         anchorX: 0.5,
-        anchorY: 1,
-        scale: 1,
+        anchorY: 0.9,
+        scale: 1.4,
       };
+
+      const BG = { offsetX: 0, offsetY: -100, scale: 1 };
+      let bg;
+
+      // ===== Aircraft =====
+      let aircraft;
+      const AIRCRAFT = {
+        duration: 4, // seconds for full approach
+        startX: 0.5, // relative to screen width
+        startY: 0.25,
+        startScale: 0.05,
+        endX: 0.48, // landing point relative to screen
+        endY: 0.72,
+        endScale: 0.35,
+      };
+      let aircraftT = 0;
+      let aircraftLanded = false;
 
       // ===== Init =====
       async function init() {
@@ -284,13 +337,25 @@
         document.body.appendChild(app.canvas);
 
         await PIXI.Assets.load([
+          'sprites/bg.png',
           'sprites/warship.png',
+          'sprites/aircraft.png',
           'sprites/body.png',
           'sprites/arm-left.png',
           'sprites/arm-right.png',
         ]);
 
-        // ===== Warship background =====
+        // ===== Background =====
+        bg = PIXI.Sprite.from('sprites/bg.png');
+        bg.anchor.set(0.5, 0.5);
+        bg.x = app.screen.width / 2 + BG.offsetX;
+        bg.y = app.screen.height / 2 + BG.offsetY;
+        const bgScaleX = app.screen.width / bg.texture.width;
+        const bgScaleY = app.screen.height / bg.texture.height;
+        bg.scale.set(Math.max(bgScaleX, bgScaleY) * BG.scale);
+        app.stage.addChild(bg);
+
+        // ===== Warship =====
         warship = PIXI.Sprite.from('sprites/warship.png');
         warship.anchor.set(WARSHIP.anchorX, WARSHIP.anchorY);
         warship.x = app.screen.width / 2 + WARSHIP.offsetX;
@@ -300,6 +365,14 @@
         // Scale warship to fill screen width
         const shipBaseScale = app.screen.width / warship.texture.width;
         warship.scale.set(shipBaseScale * WARSHIP.scale);
+
+        // ===== Aircraft =====
+        aircraft = PIXI.Sprite.from('sprites/aircraft.png');
+        aircraft.anchor.set(0.5, 0.5);
+        aircraft.x = app.screen.width * AIRCRAFT.startX;
+        aircraft.y = app.screen.height * AIRCRAFT.startY;
+        aircraft.scale.set(AIRCRAFT.startScale);
+        app.stage.addChild(aircraft);
 
         // ===== Resize handler ref =====
         const resizeWarship = () => {
@@ -317,21 +390,21 @@
 
         // ===== Left arm =====
         armLeft = PIXI.Sprite.from('sprites/arm-left.png');
-        armLeft.anchor.set(...Object.values(LEFT_ANCHOR));
-        armLeft.x = LEFT_SHOULDER.x;
-        armLeft.y = LEFT_SHOULDER.y;
+        armLeft.anchor.set(ANCHORS.left.x, ANCHORS.left.y);
+        armLeft.x = SHOULDERS.left.x;
+        armLeft.y = SHOULDERS.left.y;
         character.addChild(armLeft);
 
         // ===== Right arm =====
         armRight = PIXI.Sprite.from('sprites/arm-right.png');
-        armRight.anchor.set(...Object.values(RIGHT_ANCHOR));
-        armRight.x = RIGHT_SHOULDER.x;
-        armRight.y = RIGHT_SHOULDER.y;
+        armRight.anchor.set(ANCHORS.right.x, ANCHORS.right.y);
+        armRight.x = SHOULDERS.right.x;
+        armRight.y = SHOULDERS.right.y;
         character.addChild(armRight);
 
         // ===== Body (on top of arms) =====
         const body = PIXI.Sprite.from('sprites/body.png');
-        body.anchor.set(0.5, 1.7);
+        body.anchor.set(0.5, 1);
         body.x = 0;
         body.y = 0;
         character.addChild(body);
@@ -342,10 +415,10 @@
         dotLeftAnchor = new PIXI.Graphics().circle(0, 0, 6).fill(0xff0000);
         dotRightAnchor = new PIXI.Graphics().circle(0, 0, 6).fill(0xff0000);
 
-        dotLeftShoulder.x = LEFT_SHOULDER.x;
-        dotLeftShoulder.y = LEFT_SHOULDER.y;
-        dotRightShoulder.x = RIGHT_SHOULDER.x;
-        dotRightShoulder.y = RIGHT_SHOULDER.y;
+        dotLeftShoulder.x = SHOULDERS.left.x;
+        dotLeftShoulder.y = SHOULDERS.left.y;
+        dotRightShoulder.x = SHOULDERS.right.x;
+        dotRightShoulder.y = SHOULDERS.right.y;
 
         character.addChild(dotLeftShoulder);
         character.addChild(dotRightShoulder);
@@ -379,6 +452,11 @@
           character.y = app.screen.height;
           hint.x = app.screen.width / 2;
           resizeWarship();
+          bg.x = app.screen.width / 2 + BG.offsetX;
+          bg.y = app.screen.height / 2 + BG.offsetY;
+          const bsx = app.screen.width / bg.texture.width;
+          const bsy = app.screen.height / bg.texture.height;
+          bg.scale.set(Math.max(bsx, bsy) * BG.scale);
         });
       }
 
@@ -396,6 +474,7 @@
       }
 
       // ===== Game Loop =====
+      let time = 0;
       function update() {
         // Left arm: A rotates counter-clockwise, D rotates clockwise
         if (keys.a) leftAngle -= ARM_SPEED;
@@ -413,33 +492,57 @@
         armLeft.rotation = leftAngle;
         armRight.rotation = rightAngle;
 
+        // ===== Warship wave rocking =====
+        time += 0.016;
+        warship.rotation = Math.sin(time * 0.8) * 0.008;
+        warship.y =
+          app.screen.height + WARSHIP.offsetY + Math.sin(time * 1.2) * 3;
+
+        // ===== Aircraft approach =====
+        if (!aircraftLanded) {
+          aircraftT += 0.016 / AIRCRAFT.duration;
+          if (aircraftT >= 1) {
+            aircraftT = 1;
+            aircraftLanded = true;
+          }
+          // Ease-out cubic for smooth deceleration
+          const t = 1 - Math.pow(1 - aircraftT, 3);
+          const sx = app.screen.width * AIRCRAFT.startX;
+          const sy = app.screen.height * AIRCRAFT.startY;
+          const ex = app.screen.width * AIRCRAFT.endX;
+          const ey = app.screen.height * AIRCRAFT.endY;
+          aircraft.x = sx + (ex - sx) * t;
+          aircraft.y = sy + (ey - sy) * t;
+          aircraft.scale.set(AIRCRAFT.startScale + (AIRCRAFT.endScale - AIRCRAFT.startScale) * t);
+        }
+
         // Update debug dots — shoulders (green, at pivot)
-        dotLeftShoulder.x = LEFT_SHOULDER.x;
-        dotLeftShoulder.y = LEFT_SHOULDER.y;
-        dotRightShoulder.x = RIGHT_SHOULDER.x;
-        dotRightShoulder.y = RIGHT_SHOULDER.y;
+        dotLeftShoulder.x = SHOULDERS.left.x;
+        dotLeftShoulder.y = SHOULDERS.left.y;
+        dotRightShoulder.x = SHOULDERS.right.x;
+        dotRightShoulder.y = SHOULDERS.right.y;
 
         // Anchor dots (red) — show the far tip of each arm sprite
         // Tip of left arm is at sprite-local (0, 0) relative to anchor
-        const lTipX = -LEFT_ANCHOR.x * armLeft.texture.width;
-        const lTipY = -LEFT_ANCHOR.y * armLeft.texture.height;
+        const lTipX = -ANCHORS.left.x * armLeft.texture.width;
+        const lTipY = -ANCHORS.left.y * armLeft.texture.height;
         dotLeftAnchor.x =
-          LEFT_SHOULDER.x +
+          SHOULDERS.left.x +
           lTipX * Math.cos(leftAngle) -
           lTipY * Math.sin(leftAngle);
         dotLeftAnchor.y =
-          LEFT_SHOULDER.y +
+          SHOULDERS.left.y +
           lTipX * Math.sin(leftAngle) +
           lTipY * Math.cos(leftAngle);
 
-        const rTipX = (1 - RIGHT_ANCHOR.x) * armRight.texture.width;
-        const rTipY = -RIGHT_ANCHOR.y * armRight.texture.height;
+        const rTipX = (1 - ANCHORS.right.x) * armRight.texture.width;
+        const rTipY = -ANCHORS.right.y * armRight.texture.height;
         dotRightAnchor.x =
-          RIGHT_SHOULDER.x +
+          SHOULDERS.right.x +
           rTipX * Math.cos(rightAngle) -
           rTipY * Math.sin(rightAngle);
         dotRightAnchor.y =
-          RIGHT_SHOULDER.y +
+          SHOULDERS.right.y +
           rTipX * Math.sin(rightAngle) +
           rTipY * Math.cos(rightAngle);
       }
@@ -455,44 +558,44 @@
 
           switch (t) {
             case 'lsx':
-              LEFT_SHOULDER.x = v;
+              SHOULDERS.left.x = v;
               armLeft.x = v;
               $val.textContent = v;
               break;
             case 'lsy':
-              LEFT_SHOULDER.y = v;
+              SHOULDERS.left.y = v;
               armLeft.y = v;
               $val.textContent = v;
               break;
             case 'rsx':
-              RIGHT_SHOULDER.x = v;
+              SHOULDERS.right.x = v;
               armRight.x = v;
               $val.textContent = v;
               break;
             case 'rsy':
-              RIGHT_SHOULDER.y = v;
+              SHOULDERS.right.y = v;
               armRight.y = v;
               $val.textContent = v;
               break;
             case 'lax':
-              LEFT_ANCHOR.x = v / 100;
-              armLeft.anchor.x = LEFT_ANCHOR.x;
-              $val.textContent = LEFT_ANCHOR.x.toFixed(2);
+              ANCHORS.left.x = v / 100;
+              armLeft.anchor.x = ANCHORS.left.x;
+              $val.textContent = ANCHORS.left.x.toFixed(2);
               break;
             case 'lay':
-              LEFT_ANCHOR.y = v / 100;
-              armLeft.anchor.y = LEFT_ANCHOR.y;
-              $val.textContent = LEFT_ANCHOR.y.toFixed(2);
+              ANCHORS.left.y = v / 100;
+              armLeft.anchor.y = ANCHORS.left.y;
+              $val.textContent = ANCHORS.left.y.toFixed(2);
               break;
             case 'rax':
-              RIGHT_ANCHOR.x = v / 100;
-              armRight.anchor.x = RIGHT_ANCHOR.x;
-              $val.textContent = RIGHT_ANCHOR.x.toFixed(2);
+              ANCHORS.right.x = v / 100;
+              armRight.anchor.x = ANCHORS.right.x;
+              $val.textContent = ANCHORS.right.x.toFixed(2);
               break;
             case 'ray':
-              RIGHT_ANCHOR.y = v / 100;
-              armRight.anchor.y = RIGHT_ANCHOR.y;
-              $val.textContent = RIGHT_ANCHOR.y.toFixed(2);
+              ANCHORS.right.y = v / 100;
+              armRight.anchor.y = ANCHORS.right.y;
+              $val.textContent = ANCHORS.right.y.toFixed(2);
               break;
             case 'wx':
               WARSHIP.offsetX = v;
@@ -522,6 +625,25 @@
               }
               $val.textContent = WARSHIP.scale.toFixed(2);
               break;
+            case 'bgx':
+              BG.offsetX = v;
+              bg.x = app.screen.width / 2 + v;
+              $val.textContent = v;
+              break;
+            case 'bgy':
+              BG.offsetY = v;
+              bg.y = app.screen.height / 2 + v;
+              $val.textContent = v;
+              break;
+            case 'bgs':
+              BG.scale = v / 100;
+              {
+                const bsx = app.screen.width / bg.texture.width;
+                const bsy = app.screen.height / bg.texture.height;
+                bg.scale.set(Math.max(bsx, bsy) * BG.scale);
+              }
+              $val.textContent = BG.scale.toFixed(2);
+              break;
           }
         });
 
@@ -531,11 +653,12 @@
 
         $btnCopy.addEventListener('click', () => {
           const code = [
-            `LEFT_SHOULDER = { x: ${LEFT_SHOULDER.x}, y: ${LEFT_SHOULDER.y} }`,
-            `RIGHT_SHOULDER = { x: ${RIGHT_SHOULDER.x}, y: ${RIGHT_SHOULDER.y} }`,
-            `armLeft.anchor.set(${LEFT_ANCHOR.x.toFixed(2)}, ${LEFT_ANCHOR.y.toFixed(2)})`,
-            `armRight.anchor.set(${RIGHT_ANCHOR.x.toFixed(2)}, ${RIGHT_ANCHOR.y.toFixed(2)})`,
+            `SHOULDERS.left = { x: ${SHOULDERS.left.x}, y: ${SHOULDERS.left.y} }`,
+            `SHOULDERS.right = { x: ${SHOULDERS.right.x}, y: ${SHOULDERS.right.y} }`,
+            `ANCHORS.left = { x: ${ANCHORS.left.x.toFixed(2)}, y: ${ANCHORS.left.y.toFixed(2)} }`,
+            `ANCHORS.right = { x: ${ANCHORS.right.x.toFixed(2)}, y: ${ANCHORS.right.y.toFixed(2)} }`,
             `warship: offset(${WARSHIP.offsetX}, ${WARSHIP.offsetY}) anchor(${WARSHIP.anchorX.toFixed(2)}, ${WARSHIP.anchorY.toFixed(2)}) scale(${WARSHIP.scale.toFixed(2)})`,
+            `BG: offset(${BG.offsetX}, ${BG.offsetY}) scale(${BG.scale.toFixed(2)})`,
           ].join('\n');
           $debugOutput.textContent = code;
           $debugOutput.style.display = 'block';
