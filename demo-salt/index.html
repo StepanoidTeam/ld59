@@ -37,6 +37,8 @@
         Application,
         Container,
         Graphics,
+        Sprite,
+        Texture,
         Text,
       } from 'https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.min.mjs';
 
@@ -47,6 +49,57 @@
       const BETWEEN_MIN_MS = 10000;
       const BETWEEN_MAX_MS = 15000;
       const FAKE_CHANCE = 0.3;
+
+      /** Положите PNG рядом с index.html */
+      const ASSET_BG = './background_operator.png';
+      const ASSET_FRAME = './monitor_frame.png';
+      const ASSET_RECEIVING = './receiving.png';
+      const ASSET_RADAR = './radar.png';
+      const ASSET_NOISE = './noise.png';
+
+      /** Доля рамки текстуры монитора (подстройте под свой monitor_frame.png) */
+      const MONITOR_BEZEL_X = 0.09;
+      const MONITOR_BEZEL_Y = 0.11;
+
+      /**
+       * Обход ограничения fetch при некоторых сценариях (например, старые ошибки CORS).
+       * Важно: при открытии страницы как file:// текстуры всё равно нельзя передать в WebGL
+       * («tainted») — нужен http(s), см. проверку в main().
+       */
+      function loadTextureFromUrl(url) {
+        return new Promise((resolve, reject) => {
+          const image = new Image();
+          image.decoding = 'async';
+          image.onload = async () => {
+            try {
+              if (image.decode) await image.decode();
+              resolve(Texture.from(image));
+            } catch (e) {
+              reject(e);
+            }
+          };
+          image.onerror = () =>
+            reject(new Error(`Не удалось загрузить: ${url}`));
+          image.src = url;
+        });
+      }
+
+      function showFileProtocolNotice(rootEl) {
+        rootEl.innerHTML = `
+          <div style="max-width:520px;padding:28px 32px;font-family:Segoe UI,system-ui,sans-serif;color:#e6edf3;line-height:1.55;">
+            <h1 style="margin:0 0 12px;font-size:20px;font-weight:600;">Нужен локальный сервер</h1>
+            <p style="margin:0 0 16px;color:#8b949e;font-size:15px;">
+              Страница открыта как <code style="color:#58a6ff;">file://</code>. Браузер помечает локальные PNG как «испорченные» (tainted)
+              и запрещает загрузку их в WebGL — поэтому Pixi падает с <code style="color:#f85149;">texImage2D / tainted</code>.
+              Это не ошибка игры; так устроена безопасность в Chrome/Edge/Firefox.
+            </p>
+            <p style="margin:0 0 10px;font-size:15px;">Откройте игру через HTTP, например в PowerShell из папки <code style="color:#79c0ff;">demo-salt</code>:</p>
+            <pre style="margin:0 0 18px;padding:14px 16px;background:#161b22;border:1px solid #30363d;border-radius:8px;font-size:13px;overflow:auto;color:#e6edf3;">python -m http.server 8765</pre>
+            <p style="margin:0 0 8px;font-size:15px;">Затем в браузере:</p>
+            <pre style="margin:0;padding:14px 16px;background:#161b22;border:1px solid #30363d;border-radius:8px;font-size:13px;color:#3fb950;">http://localhost:8765/</pre>
+            <p style="margin:16px 0 0;font-size:14px;color:#8b949e;">Альтернатива: <code style="color:#79c0ff;">npx --yes serve -l 8765</code></p>
+          </div>`;
+      }
 
       function randInt(min, max) {
         return min + Math.floor(Math.random() * (max - min + 1));
@@ -112,6 +165,11 @@
 
       async function main() {
         const root = document.getElementById('game-root');
+        if (location.protocol === 'file:') {
+          showFileProtocolNotice(root);
+          return;
+        }
+
         const W = Math.min(920, window.innerWidth);
         const H = Math.min(640, window.innerHeight);
 
@@ -126,8 +184,77 @@
         });
         root.appendChild(app.canvas);
 
-        const ui = new Container();
-        app.stage.addChild(ui);
+        const [texBg, texFrame, texRecv, texRadar, texNoise] = await Promise.all([
+          loadTextureFromUrl(ASSET_BG),
+          loadTextureFromUrl(ASSET_FRAME),
+          loadTextureFromUrl(ASSET_RECEIVING),
+          loadTextureFromUrl(ASSET_RADAR),
+          loadTextureFromUrl(ASSET_NOISE),
+        ]);
+
+        const bgSpr = Sprite.from(texBg);
+        bgSpr.anchor.set(0.5);
+        bgSpr.eventMode = 'none';
+
+        const frameSpr = Sprite.from(texFrame);
+        frameSpr.anchor.set(0.5);
+        frameSpr.eventMode = 'none';
+
+        const recvSpr = Sprite.from(texRecv);
+        recvSpr.anchor.set(0, 0);
+        recvSpr.eventMode = 'none';
+        recvSpr.visible = false;
+
+        const radarSpr = Sprite.from(texRadar);
+        radarSpr.eventMode = 'none';
+
+        const noiseSpr = Sprite.from(texNoise);
+        noiseSpr.eventMode = 'none';
+        noiseSpr.alpha = 0.15;
+
+        const tw = texFrame.width;
+        const th = texFrame.height;
+        const innerTW = tw * (1 - 2 * MONITOR_BEZEL_X);
+        const innerTH = th * (1 - 2 * MONITOR_BEZEL_Y);
+
+        const maxFrameW = W * 0.94;
+        const maxFrameH = H * 0.94;
+        const frameSc = Math.min(maxFrameW / tw, maxFrameH / th);
+
+        frameSpr.scale.set(frameSc);
+        frameSpr.position.set(W / 2, H / 2);
+
+        const fw = tw * frameSc;
+        const fh = th * frameSc;
+        const ix0 = W / 2 - fw / 2 + MONITOR_BEZEL_X * tw * frameSc;
+        const iy0 = H / 2 - fh / 2 + MONITOR_BEZEL_Y * th * frameSc;
+        const isw = innerTW * frameSc;
+        const ish = innerTH * frameSc;
+
+        const bgSc = Math.max(W / texBg.width, H / texBg.height);
+        bgSpr.scale.set(bgSc);
+        bgSpr.position.set(W / 2, H / 2);
+
+        const uiScale = Math.min(isw / W, ish / H);
+        const monitorUi = new Container();
+        monitorUi.scale.set(uiScale);
+        monitorUi.position.set(
+          ix0 + (isw - W * uiScale) / 2,
+          iy0 + (ish - H * uiScale) / 2,
+        );
+
+        noiseSpr.position.set(ix0, iy0);
+        noiseSpr.width = isw;
+        noiseSpr.height = ish;
+
+        const recvMaxW = Math.min(fw * 0.38, isw * 0.52);
+        recvSpr.scale.set(recvMaxW / texRecv.width);
+        recvSpr.position.set(W / 2 - fw / 2 + 12, H / 2 - fh / 2 + 10);
+
+        const radarMax = Math.min(120, W * 0.2);
+        radarSpr.anchor.set(1, 0);
+        radarSpr.scale.set(radarMax / texRadar.width);
+        radarSpr.position.set(W - 10, 10);
 
         const pad = 24;
         const title = new Text({
@@ -293,7 +420,7 @@
           0x1f6feb,
         );
 
-        ui.addChild(
+        monitorUi.addChild(
           title,
           gameClock,
           waitingText,
@@ -304,6 +431,15 @@
           btnReport,
           btnCalm,
         );
+
+        /* Рамка под UI: если центр PNG непрозрачный, при порядке «рамка сверху»
+           весь сигнал оказывается скрыт. Шум и текст — поверх рамки. */
+        app.stage.addChild(bgSpr);
+        app.stage.addChild(frameSpr);
+        app.stage.addChild(monitorUi);
+        app.stage.addChild(noiseSpr);
+        app.stage.addChild(recvSpr);
+        app.stage.addChild(radarSpr);
 
         let gameStart = performance.now();
         let gameEnd = gameStart + GAME_MS;
@@ -343,6 +479,7 @@
 
         function finishGame() {
           ended = true;
+          recvSpr.visible = false;
           currentSignal = null;
           signalExpiresAt = null;
           nextSignalAt = null;
@@ -410,6 +547,12 @@
           if (ended) return;
 
           const now = performance.now();
+
+          recvSpr.visible = !!currentSignal;
+          if (recvSpr.visible) {
+            recvSpr.alpha =
+              0.42 + 0.58 * (0.5 + 0.5 * Math.sin(now * 0.0065));
+          }
 
           const leftMs = Math.max(0, Math.ceil(gameEnd - now));
           const mm = Math.floor(leftMs / 60000);
