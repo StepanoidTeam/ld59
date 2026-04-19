@@ -12,14 +12,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Publish to itch.io
-        uses: addy72/butler-publish-action@v1
-        with:
-          # Твой API ключ из секретов GitHub
-          itch_api_key: ${{ secrets.BUTLER_API_KEY }}
-          # Путь к папке (у тебя это demo-lighthouse)
-          itch_game_path: ./demo-lighthouse
-          # Твой логин/название-игры
-          itch_target: nuclme/lighthouse
-          # Канал (для веба)
-          itch_channel: web
+      - name: Install Butler
+        run: |
+          # Скачиваем Butler напрямую из официального хранилища через LATEST
+          curl -L -o butler.zip https://dl.itch.ovh/butler/linux-amd64/LATEST/archive/default
+          unzip butler.zip
+          chmod +x butler
+          ./butler -V
+
+      - name: Deploy to itch.io
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          # Пушим папку demo-lighthouse
+          ./butler push ./demo-lighthouse nuclme/lighthouse:web
