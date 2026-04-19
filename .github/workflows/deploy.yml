@@ -3,7 +3,7 @@ name: Deploy to itch.io
 on:
   push:
     branches:
-      - main  # Если у тебя ветка master, замени на master
+      - main
 
 jobs:
   deploy:
@@ -12,14 +12,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Upload to itch.io
-        uses: manleyjster/action-itch@v1.1.0
-        with:
-          # Твой API ключ из секретов
-          api_key: ${{ secrets.BUTLER_API_KEY }}
-          # Твой логин и слаг игры
-          game: nuclme/lighthouse
-          # Канал (для HTML5 ставим web)
-          channel: web
-          # Путь к папке с файлами (индекс, цсс, джс)
-          directory: ./demo-lighthouse
+      - name: Install Butler
+        run: |
+          # Используем стабильный адрес загрузки
+          curl -L -o butler.zip https://db.tt/V9S96Z9mXf # Это официальный редирект на Butler для Linux
+          # Если верхняя не сработает, вот запасная прямая: 
+          # curl -L -o butler.zip https://dl.itch.ovh/butler/linux-amd64/LATEST/archive/default
+          
+          unzip butler.zip
+          chmod +x butler
+          ./butler -V
+
+      - name: Deploy to itch.io
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          ./butler push ./demo-lighthouse nuclme/lighthouse:web
