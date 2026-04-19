@@ -8,23 +8,16 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Используем официальный образ, где Butler уже есть внутри
+    container: itchio/butler:latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Install Butler
-        run: |
-          # Используем стабильный адрес загрузки
-          curl -L -o butler.zip https://db.tt/V9S96Z9mXf # Это официальный редирект на Butler для Linux
-          # Если верхняя не сработает, вот запасная прямая: 
-          # curl -L -o butler.zip https://dl.itch.ovh/butler/linux-amd64/LATEST/archive/default
-          
-          unzip butler.zip
-          chmod +x butler
-          ./butler -V
 
       - name: Deploy to itch.io
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
         run: |
-          ./butler push ./demo-lighthouse nuclme/lighthouse:web
+          # В этом образе butler вызывается просто командой 'butler'
+          butler -V
+          butler push ./demo-lighthouse nuclme/lighthouse:web
