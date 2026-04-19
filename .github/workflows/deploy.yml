@@ -12,14 +12,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Butler
-        run: |
-          curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
-          unzip butler.zip
-          chmod +x butler
-
       - name: Deploy to itch.io
-        env:
-          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
-        run: |
-          ./butler push ./demo-lighthouse nuclme/lighthouse:web
+        uses: josephbstaton/upload-to-itch@v1.5
+        with:
+          # Твой секрет из настроек репозитория
+          itch_username: nuclme
+          itch_game_id: lighthouse
+          # Канал для HTML5 игры
+          itch_channel: web
+          # Путь к папке с игрой
+          package: ./demo-lighthouse
+          # API Ключ
+          api_key: ${{ secrets.BUTLER_API_KEY }}
