@@ -8,16 +8,18 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Используем официальный образ, где Butler уже есть внутри
-    container: itchio/butler:latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Deploy to itch.io
-        env:
-          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
-        run: |
-          # В этом образе butler вызывается просто командой 'butler'
-          butler -V
-          butler push ./demo-lighthouse nuclme/lighthouse:web
+      - name: Publish to itch.io
+        uses: addy72/butler-publish-action@v1
+        with:
+          # Твой API ключ из секретов GitHub
+          itch_api_key: ${{ secrets.BUTLER_API_KEY }}
+          # Путь к папке (у тебя это demo-lighthouse)
+          itch_game_path: ./demo-lighthouse
+          # Твой логин/название-игры
+          itch_target: nuclme/lighthouse
+          # Канал (для веба)
+          itch_channel: web
