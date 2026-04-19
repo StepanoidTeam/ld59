@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arm Swinger</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #1a1a2e;
+        overflow: hidden;
+        height: 100dvh;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+      }
+
+      .character {
+        position: relative;
+        width: 120px;
+        margin-bottom: 20px;
+      }
+
+      /* ===== Head ===== */
+      .head {
+        width: 60px;
+        height: 60px;
+        background: #f0c27f;
+        border-radius: 50%;
+        margin: 0 auto 0;
+        position: relative;
+        z-index: 2;
+      }
+
+      .head::before,
+      .head::after {
+        content: '';
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background: #1a1a2e;
+        border-radius: 50%;
+        top: 22px;
+      }
+
+      .head::before {
+        left: 15px;
+      }
+      .head::after {
+        right: 15px;
+      }
+
+      /* ===== Body ===== */
+      .body {
+        width: 60px;
+        height: 100px;
+        background: #e94560;
+        border-radius: 12px 12px 8px 8px;
+        margin: -5px auto 0;
+        position: relative;
+        z-index: 1;
+      }
+
+      /* ===== Shoulders (arm pivot points) ===== */
+      .shoulder {
+        position: absolute;
+        top: 8px;
+        width: 0;
+        height: 0;
+        z-index: 3;
+      }
+
+      .shoulder--left {
+        left: 0;
+        transform: translateX(-50%);
+      }
+
+      .shoulder--right {
+        right: 0;
+        transform: translateX(50%);
+      }
+
+      /* ===== Arms ===== */
+      .arm {
+        width: 20px;
+        height: 100px;
+        border-radius: 10px;
+        position: absolute;
+        transform-origin: 50% 0;
+        transition: none;
+      }
+
+      .arm--left {
+        background: #f0c27f;
+        left: -10px;
+        top: 0;
+      }
+
+      .arm--right {
+        background: #f0c27f;
+        right: -10px;
+        top: 0;
+      }
+
+      /* ===== Hand (fist at the end of arm) ===== */
+      .hand {
+        width: 24px;
+        height: 24px;
+        background: #f0c27f;
+        border-radius: 50%;
+        position: absolute;
+        bottom: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 2px solid #d4a35a;
+      }
+
+      /* ===== Legs ===== */
+      .legs {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-top: -4px;
+        position: relative;
+        z-index: 0;
+      }
+
+      .leg {
+        width: 22px;
+        height: 70px;
+        background: #16213e;
+        border-radius: 8px 8px 6px 6px;
+      }
+
+      /* ===== Controls hint ===== */
+      .controls {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #eee;
+        font-family: monospace;
+        font-size: 16px;
+        text-align: center;
+        opacity: 0.7;
+        pointer-events: none;
+        line-height: 1.8;
+      }
+
+      kbd {
+        display: inline-block;
+        padding: 2px 8px;
+        background: #333;
+        border-radius: 4px;
+        border: 1px solid #555;
+        font-size: 14px;
+        min-width: 24px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="controls">
+      Left arm: <kbd>A</kbd> / <kbd>D</kbd><br />
+      Right arm: <kbd>J</kbd> / <kbd>L</kbd>
+    </div>
+
+    <div class="character">
+      <div class="head"></div>
+      <div class="body">
+        <!-- Left shoulder pivot -->
+        <div class="shoulder shoulder--left">
+          <div class="arm arm--left" id="$armLeft">
+            <div class="hand"></div>
+          </div>
+        </div>
+        <!-- Right shoulder pivot -->
+        <div class="shoulder shoulder--right">
+          <div class="arm arm--right" id="$armRight">
+            <div class="hand"></div>
+          </div>
+        </div>
+      </div>
+      <div class="legs">
+        <div class="leg"></div>
+        <div class="leg"></div>
+      </div>
+    </div>
+
+    <script>
+      // ===== Config =====
+      const ARM_SPEED = 4; // degrees per frame
+      const ARM_MIN = -180;
+      const ARM_MAX = 180;
+
+      // ===== State =====
+      let leftAngle = 0;
+      let rightAngle = 0;
+
+      const keys = {
+        a: false,
+        d: false,
+        j: false,
+        l: false,
+      };
+
+      // ===== Events =====
+      function bindEvents() {
+        document.addEventListener('keydown', (e) => {
+          const k = e.key.toLowerCase();
+          if (k in keys) keys[k] = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+          const k = e.key.toLowerCase();
+          if (k in keys) keys[k] = false;
+        });
+      }
+
+      // ===== Game Loop =====
+      function update() {
+        // Left arm: A rotates counter-clockwise, D rotates clockwise
+        if (keys.a) leftAngle -= ARM_SPEED;
+        if (keys.d) leftAngle += ARM_SPEED;
+
+        // Right arm: J rotates counter-clockwise, L rotates clockwise
+        if (keys.j) rightAngle -= ARM_SPEED;
+        if (keys.l) rightAngle += ARM_SPEED;
+
+        // Clamp
+        leftAngle = Math.max(ARM_MIN, Math.min(ARM_MAX, leftAngle));
+        rightAngle = Math.max(ARM_MIN, Math.min(ARM_MAX, rightAngle));
+
+        // Apply
+        $armLeft.style.transform = `rotate(${leftAngle}deg)`;
+        $armRight.style.transform = `rotate(${rightAngle}deg)`;
+
+        requestAnimationFrame(update);
+      }
+
+      // ===== Init =====
+      function init() {
+        bindEvents();
+        requestAnimationFrame(update);
+      }
+
+      init();
+    </script>
+  </body>
+</html>
