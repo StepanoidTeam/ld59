@@ -3,7 +3,7 @@ name: Deploy to itch.io
 on:
   push:
     branches:
-      - main
+      - main  # Если у тебя ветка master, замени на master
 
 jobs:
   deploy:
@@ -12,15 +12,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Deploy to itch.io
-        uses: josephbstaton/upload-to-itch@v1.5
+      - name: Upload to itch.io
+        uses: manleyjster/action-itch@v1.1.0
         with:
-          # Твой секрет из настроек репозитория
-          itch_username: nuclme
-          itch_game_id: lighthouse
-          # Канал для HTML5 игры
-          itch_channel: web
-          # Путь к папке с игрой
-          package: ./demo-lighthouse
-          # API Ключ
+          # Твой API ключ из секретов
           api_key: ${{ secrets.BUTLER_API_KEY }}
+          # Твой логин и слаг игры
+          game: nuclme/lighthouse
+          # Канал (для HTML5 ставим web)
+          channel: web
+          # Путь к папке с файлами (индекс, цсс, джс)
+          directory: ./demo-lighthouse
