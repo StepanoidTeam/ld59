@@ -513,7 +513,9 @@
           const ey = app.screen.height * AIRCRAFT.endY;
           aircraft.x = sx + (ex - sx) * t;
           aircraft.y = sy + (ey - sy) * t;
-          aircraft.scale.set(AIRCRAFT.startScale + (AIRCRAFT.endScale - AIRCRAFT.startScale) * t);
+          aircraft.scale.set(
+            AIRCRAFT.startScale + (AIRCRAFT.endScale - AIRCRAFT.startScale) * t,
+          );
         }
 
         // Update debug dots — shoulders (green, at pivot)
