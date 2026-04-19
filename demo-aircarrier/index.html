@@ -10,204 +10,377 @@
         padding: 0;
         box-sizing: border-box;
       }
-
       body {
         background: #1a1a2e;
         overflow: hidden;
-        height: 100dvh;
-        display: flex;
-        justify-content: center;
-        align-items: flex-end;
+      }
+      canvas {
+        display: block;
       }
 
-      .character {
-        position: relative;
-        width: 120px;
-        margin-bottom: 20px;
-      }
-
-      /* ===== Head ===== */
-      .head {
-        width: 60px;
-        height: 60px;
-        background: #f0c27f;
-        border-radius: 50%;
-        margin: 0 auto 0;
-        position: relative;
-        z-index: 2;
-      }
-
-      .head::before,
-      .head::after {
-        content: '';
-        position: absolute;
-        width: 10px;
-        height: 10px;
-        background: #1a1a2e;
-        border-radius: 50%;
-        top: 22px;
-      }
-
-      .head::before {
-        left: 15px;
-      }
-      .head::after {
-        right: 15px;
-      }
-
-      /* ===== Body ===== */
-      .body {
-        width: 60px;
-        height: 100px;
-        background: #e94560;
-        border-radius: 12px 12px 8px 8px;
-        margin: -5px auto 0;
-        position: relative;
-        z-index: 1;
-      }
-
-      /* ===== Shoulders (arm pivot points) ===== */
-      .shoulder {
-        position: absolute;
-        top: 8px;
-        width: 0;
-        height: 0;
-        z-index: 3;
-      }
-
-      .shoulder--left {
-        left: 0;
-        transform: translateX(-50%);
-      }
-
-      .shoulder--right {
-        right: 0;
-        transform: translateX(50%);
-      }
-
-      /* ===== Arms ===== */
-      .arm {
-        width: 20px;
-        height: 100px;
-        border-radius: 10px;
-        position: absolute;
-        transform-origin: 50% 0;
-        transition: none;
-      }
-
-      .arm--left {
-        background: #f0c27f;
-        left: -10px;
-        top: 0;
-      }
-
-      .arm--right {
-        background: #f0c27f;
-        right: -10px;
-        top: 0;
-      }
-
-      /* ===== Hand (fist at the end of arm) ===== */
-      .hand {
-        width: 24px;
-        height: 24px;
-        background: #f0c27f;
-        border-radius: 50%;
-        position: absolute;
-        bottom: -8px;
-        left: 50%;
-        transform: translateX(-50%);
-        border: 2px solid #d4a35a;
-      }
-
-      /* ===== Legs ===== */
-      .legs {
-        display: flex;
-        justify-content: center;
-        gap: 8px;
-        margin-top: -4px;
-        position: relative;
-        z-index: 0;
-      }
-
-      .leg {
-        width: 22px;
-        height: 70px;
-        background: #16213e;
-        border-radius: 8px 8px 6px 6px;
-      }
-
-      /* ===== Controls hint ===== */
-      .controls {
+      /* ===== Debug Panel ===== */
+      .debug {
         position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        color: #eee;
+        top: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.85);
+        color: #ccc;
         font-family: monospace;
-        font-size: 16px;
-        text-align: center;
-        opacity: 0.7;
-        pointer-events: none;
-        line-height: 1.8;
-      }
+        font-size: 12px;
+        padding: 12px;
+        border-radius: 8px;
+        z-index: 3;
+        min-width: 280px;
+        user-select: none;
 
-      kbd {
-        display: inline-block;
-        padding: 2px 8px;
-        background: #333;
-        border-radius: 4px;
-        border: 1px solid #555;
-        font-size: 14px;
-        min-width: 24px;
-        text-align: center;
+        & h3 {
+          color: #fff;
+          margin: 10px 0 4px;
+          font-size: 13px;
+
+          &:first-child {
+            margin-top: 0;
+          }
+        }
+
+        & label {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin: 3px 0;
+
+          & span:first-child {
+            min-width: 70px;
+          }
+          & input[type='range'] {
+            flex: 1;
+          }
+          & .val {
+            min-width: 50px;
+            text-align: right;
+            color: #0f0;
+          }
+        }
+
+        & button {
+          margin-top: 8px;
+          padding: 4px 10px;
+          background: #333;
+          color: #0f0;
+          border: 1px solid #555;
+          border-radius: 4px;
+          font-family: monospace;
+          font-size: 12px;
+          cursor: pointer;
+        }
+
+        & pre {
+          margin-top: 6px;
+          padding: 6px;
+          background: #111;
+          border-radius: 4px;
+          color: #0f0;
+          font-size: 11px;
+          white-space: pre;
+          display: none;
+        }
       }
     </style>
   </head>
   <body>
-    <div class="controls">
-      Left arm: <kbd>A</kbd> / <kbd>D</kbd><br />
-      Right arm: <kbd>J</kbd> / <kbd>L</kbd>
+    <!-- ===== Debug Panel ===== -->
+    <div class="debug" id="$debug">
+      <h3>Left Shoulder</h3>
+      <label
+        ><span>x</span
+        ><input
+          type="range"
+          min="-500"
+          max="500"
+          value="-165"
+          data-target="lsx"
+        /><span class="val">-165</span></label
+      >
+      <label
+        ><span>y</span
+        ><input
+          type="range"
+          min="-500"
+          max="0"
+          value="-390"
+          data-target="lsy"
+        /><span class="val">-390</span></label
+      >
+
+      <h3>Right Shoulder</h3>
+      <label
+        ><span>x</span
+        ><input
+          type="range"
+          min="-500"
+          max="500"
+          value="165"
+          data-target="rsx"
+        /><span class="val">165</span></label
+      >
+      <label
+        ><span>y</span
+        ><input
+          type="range"
+          min="-500"
+          max="0"
+          value="-390"
+          data-target="rsy"
+        /><span class="val">-390</span></label
+      >
+
+      <h3>Left Arm Anchor</h3>
+      <label
+        ><span>x</span
+        ><input
+          type="range"
+          min="0"
+          max="100"
+          value="85"
+          data-target="lax"
+        /><span class="val">0.85</span></label
+      >
+      <label
+        ><span>y</span
+        ><input
+          type="range"
+          min="0"
+          max="100"
+          value="93"
+          data-target="lay"
+        /><span class="val">0.93</span></label
+      >
+
+      <h3>Right Arm Anchor</h3>
+      <label
+        ><span>x</span
+        ><input
+          type="range"
+          min="0"
+          max="100"
+          value="15"
+          data-target="rax"
+        /><span class="val">0.15</span></label
+      >
+      <label
+        ><span>y</span
+        ><input
+          type="range"
+          min="0"
+          max="100"
+          value="93"
+          data-target="ray"
+        /><span class="val">0.93</span></label
+      >
+
+      <button id="$btnCopy">Copy values</button>
+      <pre id="$debugOutput"></pre>
+
+      <h3>Warship</h3>
+      <label
+        ><span>x</span
+        ><input
+          type="range"
+          min="-500"
+          max="500"
+          value="0"
+          data-target="wx"
+        /><span class="val">0</span></label
+      >
+      <label
+        ><span>y</span
+        ><input
+          type="range"
+          min="-500"
+          max="500"
+          value="0"
+          data-target="wy"
+        /><span class="val">0</span></label
+      >
+      <label
+        ><span>anchor x</span
+        ><input
+          type="range"
+          min="0"
+          max="100"
+          value="50"
+          data-target="wax"
+        /><span class="val">0.50</span></label
+      >
+      <label
+        ><span>anchor y</span
+        ><input
+          type="range"
+          min="0"
+          max="100"
+          value="100"
+          data-target="way"
+        /><span class="val">1.00</span></label
+      >
+      <label
+        ><span>scale</span
+        ><input
+          type="range"
+          min="10"
+          max="200"
+          value="100"
+          data-target="ws"
+        /><span class="val">1.00</span></label
+      >
     </div>
 
-    <div class="character">
-      <div class="head"></div>
-      <div class="body">
-        <!-- Left shoulder pivot -->
-        <div class="shoulder shoulder--left">
-          <div class="arm arm--left" id="$armLeft">
-            <div class="hand"></div>
-          </div>
-        </div>
-        <!-- Right shoulder pivot -->
-        <div class="shoulder shoulder--right">
-          <div class="arm arm--right" id="$armRight">
-            <div class="hand"></div>
-          </div>
-        </div>
-      </div>
-      <div class="legs">
-        <div class="leg"></div>
-        <div class="leg"></div>
-      </div>
-    </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.9.2/dist/pixi.min.js"></script>
     <script>
       // ===== Config =====
-      const ARM_SPEED = 4; // degrees per frame
-      const ARM_MIN = -180;
-      const ARM_MAX = 180;
+      const ARM_SPEED = 0.06; // radians per frame
+      const ARM_MIN = -Math.PI;
+      const ARM_MAX = Math.PI;
+      const SCALE = 0.4;
 
       // ===== State =====
       let leftAngle = 0;
       let rightAngle = 0;
 
-      const keys = {
-        a: false,
-        d: false,
-        j: false,
-        l: false,
+      const keys = { a: false, d: false, j: false, l: false };
+
+      // ===== Sprite dimensions (for anchor math) =====
+      // body.png: 889 x 475
+      // arm-left.png: 393 x 365 — pivot at bottom-right (shoulder)
+      // arm-right.png: 419 x 361 — pivot at bottom-left (shoulder)
+
+      // Shoulder offsets from body anchor (body anchor = bottom-center)
+      const LEFT_SHOULDER = { x: -100, y: -500 };
+      const RIGHT_SHOULDER = { x: 100, y: -500 };
+
+      // ===== Debug anchor defaults =====
+      const LEFT_ANCHOR = { x: 0.95, y: 0.58 };
+      const RIGHT_ANCHOR = { x: 0.06, y: 0.58 };
+
+      let app;
+      let armLeft, armRight;
+      let dotLeftShoulder, dotRightShoulder, dotLeftAnchor, dotRightAnchor;
+      let warship;
+      const WARSHIP = {
+        offsetX: 0,
+        offsetY: 0,
+        anchorX: 0.5,
+        anchorY: 1,
+        scale: 1,
       };
+
+      // ===== Init =====
+      async function init() {
+        app = new PIXI.Application();
+        await app.init({
+          resizeTo: window,
+          background: 0x1a1a2e,
+          antialias: true,
+        });
+        document.body.appendChild(app.canvas);
+
+        await PIXI.Assets.load([
+          'sprites/warship.png',
+          'sprites/body.png',
+          'sprites/arm-left.png',
+          'sprites/arm-right.png',
+        ]);
+
+        // ===== Warship background =====
+        warship = PIXI.Sprite.from('sprites/warship.png');
+        warship.anchor.set(WARSHIP.anchorX, WARSHIP.anchorY);
+        warship.x = app.screen.width / 2 + WARSHIP.offsetX;
+        warship.y = app.screen.height + WARSHIP.offsetY;
+        app.stage.addChild(warship);
+
+        // Scale warship to fill screen width
+        const shipBaseScale = app.screen.width / warship.texture.width;
+        warship.scale.set(shipBaseScale * WARSHIP.scale);
+
+        // ===== Resize handler ref =====
+        const resizeWarship = () => {
+          warship.x = app.screen.width / 2 + WARSHIP.offsetX;
+          warship.y = app.screen.height + WARSHIP.offsetY;
+          const s = app.screen.width / warship.texture.width;
+          warship.scale.set(s * WARSHIP.scale);
+        };
+
+        const character = new PIXI.Container();
+        character.x = app.screen.width / 2;
+        character.y = app.screen.height;
+        character.scale.set(SCALE);
+        app.stage.addChild(character);
+
+        // ===== Left arm =====
+        armLeft = PIXI.Sprite.from('sprites/arm-left.png');
+        armLeft.anchor.set(...Object.values(LEFT_ANCHOR));
+        armLeft.x = LEFT_SHOULDER.x;
+        armLeft.y = LEFT_SHOULDER.y;
+        character.addChild(armLeft);
+
+        // ===== Right arm =====
+        armRight = PIXI.Sprite.from('sprites/arm-right.png');
+        armRight.anchor.set(...Object.values(RIGHT_ANCHOR));
+        armRight.x = RIGHT_SHOULDER.x;
+        armRight.y = RIGHT_SHOULDER.y;
+        character.addChild(armRight);
+
+        // ===== Body (on top of arms) =====
+        const body = PIXI.Sprite.from('sprites/body.png');
+        body.anchor.set(0.5, 1.7);
+        body.x = 0;
+        body.y = 0;
+        character.addChild(body);
+
+        // ===== Debug dots =====
+        dotLeftShoulder = new PIXI.Graphics().circle(0, 0, 8).fill(0x00ff00);
+        dotRightShoulder = new PIXI.Graphics().circle(0, 0, 8).fill(0x00ff00);
+        dotLeftAnchor = new PIXI.Graphics().circle(0, 0, 6).fill(0xff0000);
+        dotRightAnchor = new PIXI.Graphics().circle(0, 0, 6).fill(0xff0000);
+
+        dotLeftShoulder.x = LEFT_SHOULDER.x;
+        dotLeftShoulder.y = LEFT_SHOULDER.y;
+        dotRightShoulder.x = RIGHT_SHOULDER.x;
+        dotRightShoulder.y = RIGHT_SHOULDER.y;
+
+        character.addChild(dotLeftShoulder);
+        character.addChild(dotRightShoulder);
+        character.addChild(dotLeftAnchor);
+        character.addChild(dotRightAnchor);
+
+        // ===== Controls hint =====
+        const hintStyle = new PIXI.TextStyle({
+          fontFamily: 'monospace',
+          fontSize: 16,
+          fill: '#eeeeee',
+          align: 'center',
+        });
+        const hint = new PIXI.Text({
+          text: 'Left arm: [A] / [D]    Right arm: [J] / [L]',
+          style: hintStyle,
+        });
+        hint.anchor.set(0.5, 0);
+        hint.x = app.screen.width / 2;
+        hint.y = 20;
+        hint.alpha = 0.7;
+        app.stage.addChild(hint);
+
+        bindEvents();
+        initDebug();
+        app.ticker.add(update);
+
+        // ===== Resize =====
+        window.addEventListener('resize', () => {
+          character.x = app.screen.width / 2;
+          character.y = app.screen.height;
+          hint.x = app.screen.width / 2;
+          resizeWarship();
+        });
+      }
 
       // ===== Events =====
       function bindEvents() {
@@ -236,17 +409,138 @@
         leftAngle = Math.max(ARM_MIN, Math.min(ARM_MAX, leftAngle));
         rightAngle = Math.max(ARM_MIN, Math.min(ARM_MAX, rightAngle));
 
-        // Apply
-        $armLeft.style.transform = `rotate(${leftAngle}deg)`;
-        $armRight.style.transform = `rotate(${rightAngle}deg)`;
+        // Apply rotation
+        armLeft.rotation = leftAngle;
+        armRight.rotation = rightAngle;
 
-        requestAnimationFrame(update);
+        // Update debug dots — shoulders (green, at pivot)
+        dotLeftShoulder.x = LEFT_SHOULDER.x;
+        dotLeftShoulder.y = LEFT_SHOULDER.y;
+        dotRightShoulder.x = RIGHT_SHOULDER.x;
+        dotRightShoulder.y = RIGHT_SHOULDER.y;
+
+        // Anchor dots (red) — show the far tip of each arm sprite
+        // Tip of left arm is at sprite-local (0, 0) relative to anchor
+        const lTipX = -LEFT_ANCHOR.x * armLeft.texture.width;
+        const lTipY = -LEFT_ANCHOR.y * armLeft.texture.height;
+        dotLeftAnchor.x =
+          LEFT_SHOULDER.x +
+          lTipX * Math.cos(leftAngle) -
+          lTipY * Math.sin(leftAngle);
+        dotLeftAnchor.y =
+          LEFT_SHOULDER.y +
+          lTipX * Math.sin(leftAngle) +
+          lTipY * Math.cos(leftAngle);
+
+        const rTipX = (1 - RIGHT_ANCHOR.x) * armRight.texture.width;
+        const rTipY = -RIGHT_ANCHOR.y * armRight.texture.height;
+        dotRightAnchor.x =
+          RIGHT_SHOULDER.x +
+          rTipX * Math.cos(rightAngle) -
+          rTipY * Math.sin(rightAngle);
+        dotRightAnchor.y =
+          RIGHT_SHOULDER.y +
+          rTipX * Math.sin(rightAngle) +
+          rTipY * Math.cos(rightAngle);
       }
 
-      // ===== Init =====
-      function init() {
-        bindEvents();
-        requestAnimationFrame(update);
+      // ===== Debug =====
+      function initDebug() {
+        $debug.addEventListener('input', (e) => {
+          const input = e.target;
+          if (input.tagName !== 'INPUT') return;
+          const t = input.dataset.target;
+          const v = Number(input.value);
+          const $val = input.parentElement.querySelector('.val');
+
+          switch (t) {
+            case 'lsx':
+              LEFT_SHOULDER.x = v;
+              armLeft.x = v;
+              $val.textContent = v;
+              break;
+            case 'lsy':
+              LEFT_SHOULDER.y = v;
+              armLeft.y = v;
+              $val.textContent = v;
+              break;
+            case 'rsx':
+              RIGHT_SHOULDER.x = v;
+              armRight.x = v;
+              $val.textContent = v;
+              break;
+            case 'rsy':
+              RIGHT_SHOULDER.y = v;
+              armRight.y = v;
+              $val.textContent = v;
+              break;
+            case 'lax':
+              LEFT_ANCHOR.x = v / 100;
+              armLeft.anchor.x = LEFT_ANCHOR.x;
+              $val.textContent = LEFT_ANCHOR.x.toFixed(2);
+              break;
+            case 'lay':
+              LEFT_ANCHOR.y = v / 100;
+              armLeft.anchor.y = LEFT_ANCHOR.y;
+              $val.textContent = LEFT_ANCHOR.y.toFixed(2);
+              break;
+            case 'rax':
+              RIGHT_ANCHOR.x = v / 100;
+              armRight.anchor.x = RIGHT_ANCHOR.x;
+              $val.textContent = RIGHT_ANCHOR.x.toFixed(2);
+              break;
+            case 'ray':
+              RIGHT_ANCHOR.y = v / 100;
+              armRight.anchor.y = RIGHT_ANCHOR.y;
+              $val.textContent = RIGHT_ANCHOR.y.toFixed(2);
+              break;
+            case 'wx':
+              WARSHIP.offsetX = v;
+              warship.x = app.screen.width / 2 + v;
+              $val.textContent = v;
+              break;
+            case 'wy':
+              WARSHIP.offsetY = v;
+              warship.y = app.screen.height + v;
+              $val.textContent = v;
+              break;
+            case 'wax':
+              WARSHIP.anchorX = v / 100;
+              warship.anchor.x = WARSHIP.anchorX;
+              $val.textContent = WARSHIP.anchorX.toFixed(2);
+              break;
+            case 'way':
+              WARSHIP.anchorY = v / 100;
+              warship.anchor.y = WARSHIP.anchorY;
+              $val.textContent = WARSHIP.anchorY.toFixed(2);
+              break;
+            case 'ws':
+              WARSHIP.scale = v / 100;
+              {
+                const s = app.screen.width / warship.texture.width;
+                warship.scale.set(s * WARSHIP.scale);
+              }
+              $val.textContent = WARSHIP.scale.toFixed(2);
+              break;
+          }
+        });
+
+        // Prevent keyboard controls while adjusting sliders
+        $debug.addEventListener('keydown', (e) => e.stopPropagation());
+        $debug.addEventListener('keyup', (e) => e.stopPropagation());
+
+        $btnCopy.addEventListener('click', () => {
+          const code = [
+            `LEFT_SHOULDER = { x: ${LEFT_SHOULDER.x}, y: ${LEFT_SHOULDER.y} }`,
+            `RIGHT_SHOULDER = { x: ${RIGHT_SHOULDER.x}, y: ${RIGHT_SHOULDER.y} }`,
+            `armLeft.anchor.set(${LEFT_ANCHOR.x.toFixed(2)}, ${LEFT_ANCHOR.y.toFixed(2)})`,
+            `armRight.anchor.set(${RIGHT_ANCHOR.x.toFixed(2)}, ${RIGHT_ANCHOR.y.toFixed(2)})`,
+            `warship: offset(${WARSHIP.offsetX}, ${WARSHIP.offsetY}) anchor(${WARSHIP.anchorX.toFixed(2)}, ${WARSHIP.anchorY.toFixed(2)}) scale(${WARSHIP.scale.toFixed(2)})`,
+          ].join('\n');
+          $debugOutput.textContent = code;
+          $debugOutput.style.display = 'block';
+          navigator.clipboard.writeText(code);
+        });
       }
 
       init();
