@@ -1,4 +1,4 @@
-import { EMOJI_TAGS } from './demo-bob/js/emoji-tags.js';
+import { EMOJI_TAGS } from './js/emoji-tags.js';
 
 const emojis = [...EMOJI_TAGS.keys()];
 const n = emojis.length;
